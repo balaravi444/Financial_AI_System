@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinanceAI — Your Smart Money Guide</title>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ONBOARDING WIZARD -->
+<div class="wizard-overlay" id="wizard" style="display:none">
+  <div class="wizard-box">
+    <div class="wizard-step-indicator" id="wizard-dots"></div>
+    <div id="wizard-content"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-logo">F</div>
+    <div>
+      <span class="topbar-brand">FinanceAI</span>
+      <span class="topbar-tagline">Smart Indian Money Guide</span>
+    </div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+      <button class="nav-btn" data-page="stocks">Stocks</button>
+      <button class="nav-btn" data-page="savings">Savings</button>
+      <button class="nav-btn" data-page="tax">Tax</button>
+      <button class="nav-btn" data-page="insurance">Insurance</button>
+      <button class="nav-btn" data-page="roadmap">Roadmap</button>
+      <button class="nav-btn" data-page="goals">Goals</button>
+      <button class="nav-btn" data-page="portfolio">Portfolio</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="live-dot" title="Live data"></div>
+      <button class="profile-btn" id="profile-btn" style="display:none">
+        <div class="avatar" id="profile-avatar">R</div>
+        <span id="profile-name-btn">Profile</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div id="main-body">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sidebar-section">Analyse</div>
+      <button class="sidebar-btn active" data-page="dashboard">
+        <span class="s-icon">📊</span>Dashboard
+      </button>
+      <button class="sidebar-btn" data-page="savings">
+        <span class="s-icon">💰</span>Savings
+      </button>
+      <button class="sidebar-btn" data-page="tax">
+        <span class="s-icon">📋</span>Tax Optimizer
+      </button>
+      <button class="sidebar-btn" data-page="roadmap">
+        <span class="s-icon">🗺️</span>Invest Plan
+      </button>
+      <button class="sidebar-btn" data-page="insurance">
+        <span class="s-icon">🛡️</span>Insurance
+      </button>
+      <button class="sidebar-btn" data-page="stocks">
+        <span class="s-icon">📈</span>Stocks
+      </button>
+      <div class="sidebar-section">Track</div>
+      <button class="sidebar-btn" data-page="goals">
+        <span class="s-icon">🎯</span>Goals
+      </button>
+      <button class="sidebar-btn" data-page="portfolio">
+        <span class="s-icon">💼</span>Portfolio
+      </button>
+      <div class="sidebar-section">Learn</div>
+      <button class="sidebar-btn" id="learn-mf">
+        <span class="s-icon">📚</span>Mutual Funds
+      </button>
+      <button class="sidebar-btn" id="learn-stocks">
+        <span class="s-icon">📚</span>Stocks
+      </button>
+      <button class="sidebar-btn" id="learn-ppf">
+        <span class="s-icon">📚</span>PPF
+      </button>
+      <button class="sidebar-btn" id="learn-gold">
+        <span class="s-icon">📚</span>Gold
+      </button>
+      <div class="sidebar-section">Protect</div>
+      <button class="sidebar-btn" id="fraud-check">
+        <span class="s-icon">🚨</span>Scam Checker
+        <span class="sidebar-badge">!</span>
+      </button>
+    </div>
+
+    <!-- PAGE AREA -->
+    <div id="page-area">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+
+        <!-- Health Score Hero -->
+        <div class="hero-card" id="hero-card">
+          <!-- skeleton state -->
+          <div id="hero-skeleton" style="display:flex;gap:28px;align-items:center;width:100%">
+            <div class="skeleton sk-ring"></div>
+            <div style="flex:1">
+              <div class="skeleton sk-line" style="width:60%"></div>
+              <div class="skeleton sk-line-sm"></div>
+              <div class="skeleton sk-line-sm" style="width:40%"></div>
+            </div>
+          </div>
+          <!-- real state (hidden until loaded) -->
+          <div id="hero-real" style="display:none;width:100%;flex-direction:row;align-items:center;gap:28px;">
+            <div class="score-ring-wrap">
+              <canvas id="score-ring" width="160" height="160"></canvas>
+              <div class="score-center">
+                <div class="score-num" id="score-number">--</div>
+                <div class="score-denom">/100</div>
+              </div>
+            </div>
+            <div class="hero-info">
+              <div class="hero-greeting" id="hero-greeting">Loading...</div>
+              <div class="hero-sub" id="hero-sub">your financial health score</div>
+              <span class="grade-pill grade-blue" id="hero-grade">Calculating</span>
+              <div class="next-action" id="hero-next-action">
+                <strong>Next step:</strong> loading...
+              </div>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary btn-sm" onclick="refreshScore()">
+                ↻ Refresh
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="openChat()">
+                💬 Ask AI
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Market Pulse -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📊 Market Pulse</span>
+            <button class="card-action" onclick="loadPulse()">↻ Refresh</button>
+          </div>
+          <div class="pulse-grid" id="pulse-grid">
+            <div class="pulse-item">
+              <div class="pulse-name">Nifty 50</div>
+              <div class="pulse-value skeleton" id="p-nifty"
+                style="height:24px;width:80%;margin:0 auto 4px"></div>
+              <div class="pulse-change pulse-flat" id="p-nifty-c">—</div>
+            </div>
+            <div class="pulse-item">
+              <div class="pulse-name">Bank Nifty</div>
+              <div class="pulse-value skeleton" id="p-bnifty"
+                style="height:24px;width:80%;margin:0 auto 4px"></div>
+              <div class="pulse-change pulse-flat" id="p-bnifty-c">—</div>
+            </div>
+            <div class="pulse-item">
+              <div class="pulse-name">Sensex</div>
+              <div class="pulse-value skeleton" id="p-sensex"
+                style="height:24px;width:80%;margin:0 auto 4px"></div>
+              <div class="pulse-change pulse-flat" id="p-sensex-c">—</div>
+            </div>
+            <div class="pulse-item">
+              <div class="pulse-name">Gold</div>
+              <div class="pulse-value skeleton" id="p-gold"
+                style="height:24px;width:80%;margin:0 auto 4px"></div>
+              <div class="pulse-change pulse-flat" id="p-gold-c">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-grid" id="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Monthly Income</div>
+            <div class="metric-value t-blue skeleton"
+              id="m-income" style="height:28px;width:70%"></div>
+            <div class="metric-sub">take-home</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Monthly Savings</div>
+            <div class="metric-value skeleton"
+              id="m-savings" style="height:28px;width:70%"></div>
+            <div class="metric-sub" id="m-savings-sub">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Emergency Fund Target</div>
+            <div class="metric-value t-amber skeleton"
+              id="m-emergency" style="height:28px;width:70%"></div>
+            <div class="metric-sub">6 months expenses</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">80C Tax Saving</div>
+            <div class="metric-value t-green"
+              id="m-tax">₹1,50,000</div>
+            <div class="metric-sub">use before Mar 31</div>
+          </div>
+        </div>
+
+        <!-- Two column: SIP calc + Score breakdown -->
+        <div class="dashboard-split">
+
+          <!-- SIP Calculator -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📈 SIP Wealth Calculator</span>
+            </div>
+            <div class="sip-controls">
+              <div class="sip-control">
+                <label>Monthly SIP: ₹<span id="sip-v1">5,000</span></label>
+                <input type="range" id="sip-s1" min="500"
+                  max="100000" step="500" value="5000" oninput="updateSIP()"/>
+              </div>
+              <div class="sip-control">
+                <label>Duration: <span id="sip-v2">15</span> years</label>
+                <input type="range" id="sip-s2" min="1"
+                  max="40" step="1" value="15" oninput="updateSIP()"/>
+              </div>
+              <div class="sip-control">
+                <label>Returns: <span id="sip-v3">12</span>%</label>
+                <input type="range" id="sip-s3" min="6"
+                  max="20" step="1" value="12" oninput="updateSIP()"/>
+              </div>
+            </div>
+            <div class="sip-results">
+              <div class="sip-stat">
+                <div class="sv" id="sip-r1">₹9L</div>
+                <div class="sl">Invested</div>
+              </div>
+              <div class="sip-stat">
+                <div class="sv" id="sip-r2">₹27L</div>
+                <div class="sl">Returns</div>
+              </div>
+              <div class="sip-stat">
+                <div class="sv" id="sip-r3">₹36L</div>
+                <div class="sl">Total Value</div>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="sip-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Health Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🏆 Score Breakdown</span>
+            </div>
+            <div class="breakdown-grid" id="breakdown-grid">
+              <!-- skeleton -->
+              <div class="breakdown-item">
+                <div class="skeleton sk-line"></div>
+                <div class="skeleton sk-line-sm"></div>
+              </div>
+              <div class="breakdown-item">
+                <div class="skeleton sk-line"></div>
+                <div class="skeleton sk-line-sm"></div>
+              </div>
+              <div class="breakdown-item">
+                <div class="skeleton sk-line"></div>
+                <div class="skeleton sk-line-sm"></div>
+              </div>
+              <div class="breakdown-item">
+                <div class="skeleton sk-line"></div>
+                <div class="skeleton sk-line-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">⚡ Personalised Alerts</span>
+            <button class="card-action" onclick="loadAlerts()">↻ Refresh</button>
+          </div>
+          <div id="alerts-body">
+            <div class="skeleton sk-box" style="margin-bottom:8px"></div>
+            <div class="skeleton sk-box"></div>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+
+      <!-- STOCKS PAGE -->
+      <div class="page" id="page-stocks">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📈 Live Stock Analyser — NSE &amp; BSE</span>
+          </div>
+          <div class="stock-search">
+            <input class="stock-input" id="stock-input"
+              placeholder="e.g. RELIANCE"/>
+            <button class="btn btn-green" id="analyze-btn"
+              onclick="doAnalyze()">⚡ Analyse Live</button>
+            <div class="quick-chips">
+              <button class="chip" onclick="qa('RELIANCE')">Reliance</button>
+              <button class="chip" onclick="qa('TCS')">TCS</button>
+              <button class="chip" onclick="qa('INFY')">Infosys</button>
+              <button class="chip" onclick="qa('HDFCBANK')">HDFC Bank</button>
+              <button class="chip" onclick="qa('WIPRO')">Wipro</button>
+              <button class="chip" onclick="qa('ITC')">ITC</button>
+              <button class="chip" onclick="qa('SBIN')">SBI</button>
+              <button class="chip" onclick="qa('TATAMOTORS')">Tata Motors</button>
+              <button class="chip" onclick="qa('ADANIENT')">Adani Ent</button>
+              <button class="chip" onclick="qa('BAJFINANCE')">Bajaj Fin</button>
+            </div>
+          </div>
+        </div>
+        <div id="stock-result"></div>
+      </div>
+
+      <!-- SAVINGS PAGE -->
+      <div class="page" id="page-savings">
+        <div class="card" id="savings-content">
+          <div class="card-header">
+            <span class="card-title">💰 Savings Analysis</span>
+            <button class="card-action btn-primary btn btn-sm"
+              onclick="loadSavings()">Analyse Now</button>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">💰</div>
+            <h3>Your Savings Breakdown</h3>
+            <p>See exactly where your money goes and how much you can save more</p>
+            <button class="btn btn-primary" onclick="loadSavings()">
+              Analyse My Savings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAX PAGE -->
+      <div class="page" id="page-tax">
+        <div class="card" id="tax-content">
+          <div class="card-header">
+            <span class="card-title">📋 Tax Optimizer</span>
+            <button class="btn btn-primary btn-sm"
+              onclick="loadTax()">Calculate Now</button>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>Tax Savings Calculator</h3>
+            <p>Find out exactly how much tax you can save this financial year</p>
+            <button class="btn btn-primary" onclick="loadTax()">
+              Calculate My Tax Savings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSURANCE PAGE -->
+      <div class="page" id="page-insurance">
+        <div class="card" id="insurance-content">
+          <div class="card-header">
+            <span class="card-title">🛡️ Insurance Planner</span>
+            <button class="btn btn-primary btn-sm"
+              onclick="loadInsurance()">Analyse Now</button>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">🛡️</div>
+            <h3>Your Insurance Needs</h3>
+            <p>Find out exactly what cover you need at your age and income</p>
+            <button class="btn btn-primary" onclick="loadInsurance()">
+              Analyse My Insurance
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROADMAP PAGE -->
+      <div class="page" id="page-roadmap">
+        <div class="card" id="roadmap-content">
+          <div class="card-header">
+            <span class="card-title">🗺️ Investment Roadmap</span>
+            <button class="btn btn-primary btn-sm"
+              onclick="loadRoadmap()">Build Plan</button>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">🗺️</div>
+            <h3>Your Personalised Investment Plan</h3>
+            <p>A complete phase-by-phase plan with exact rupee amounts</p>
+            <button class="btn btn-primary" onclick="loadRoadmap()">
+              Build My Roadmap
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- GOALS PAGE -->
+      <div class="page" id="page-goals">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🎯 Financial Goals</span>
+          </div>
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>Goal Name</label>
+              <input class="form-input" id="g-name"
+                placeholder="e.g. Emergency Fund"/>
+            </div>
+            <div class="form-group">
+              <label>Target Amount (₹)</label>
+              <input class="form-input" id="g-target"
+                type="number" placeholder="e.g. 200000"/>
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+              <label>Already Saved (₹)</label>
+              <input class="form-input" id="g-saved"
+                type="number" placeholder="e.g. 30000"/>
+            </div>
+            <div class="form-group">
+              <label>Target Date</label>
+              <input class="form-input" id="g-date" type="date"/>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="addGoal()">
+            Add Goal
+          </button>
+        </div>
+        <div id="goals-list">
+          <div class="empty-state">
+            <div class="empty-icon">🎯</div>
+            <h3>No goals yet</h3>
+            <p>Add your first financial goal above</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PORTFOLIO PAGE -->
+      <div class="page" id="page-portfolio">
+        <div class="portfolio-summary" id="portfolio-summary">
+          <div class="metric-card">
+            <div class="metric-label">Total Invested</div>
+            <div class="metric-value t-blue" id="pt-inv">₹0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Current Value</div>
+            <div class="metric-value t-green" id="pt-cur">₹0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total Gain/Loss</div>
+            <div class="metric-value" id="pt-gain">₹0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Return %</div>
+            <div class="metric-value" id="pt-pct">0%</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">➕ Add Investment</span>
+          </div>
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>Type</label>
+              <input class="form-input" id="a-type"
+                placeholder="mutual_fund / stock / fd / gold"/>
+            </div>
+            <div class="form-group">
+              <label>Name</label>
+              <input class="form-input" id="a-name"
+                placeholder="e.g. Nifty 50 Index Fund"/>
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+              <label>Invested (₹)</label>
+              <input class="form-input" id="a-inv"
+                type="number" placeholder="50000"/>
+            </div>
+            <div class="form-group">
+              <label>Current Value (₹)</label>
+              <input class="form-input" id="a-cur"
+                type="number" placeholder="62000"/>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;max-width:240px">
+            <label>Monthly SIP (₹)</label>
+            <input class="form-input" id="a-sip"
+              type="number" placeholder="2000 or 0"/>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="addAsset()">
+            Add to Portfolio
+          </button>
+        </div>
+        <div id="assets-list">
+          <div class="empty-state">
+            <div class="empty-icon">💼</div>
+            <h3>No investments tracked</h3>
+            <p>Add your SIPs, stocks, FDs above</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-area -->
+  </div><!-- /main-body -->
+</div><!-- /app -->
+
+<!-- CHAT FAB -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChat()"
+  title="Ask FinanceAI anything">
+  💬
+</button>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-panel-header">
+    <div style="font-size:20px">🤖</div>
+    <div class="chat-panel-title">FinanceAI Assistant</div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-welcome">
+      <h3>Ask me anything</h3>
+      <p>Stocks, savings, tax, insurance, fraud detection</p>
+      <div class="chat-suggestions">
+        <button class="chat-sugg"
+          onclick="chatSend('Make me a personalised investment plan')">
+          Make me an investment plan
+        </button>
+        <button class="chat-sugg"
+          onclick="chatSend('How much should I save every month?')">
+          How much should I save?
+        </button>
+        <button class="chat-sugg"
+          onclick="chatSend('Explain mutual funds in simple words')">
+          Explain mutual funds simply
+        </button>
+        <button class="chat-sugg"
+          onclick="chatSend('How do I save tax under section 80C?')">
+          How to save tax under 80C?
+        </button>
+        <button class="chat-sugg"
+          onclick="chatSend('Am I on track to retire comfortably?')">
+          Am I on track for retirement?
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-area">
+    <textarea class="chat-textarea" id="chat-input"
+      placeholder="Ask anything about money..."
+      rows="1"></textarea>
+    <button class="chat-send" id="chat-send-btn"
+      onclick="sendChatMessage()">Send</button>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
