@@ -1,103 +1,73 @@
 # app/stock_analyzer.py
-import yfinance as yf
 import pandas as pd
 import numpy as np
 from ta.momentum import RSIIndicator
 from ta.trend import MACD, SMAIndicator, EMAIndicator
 from ta.volatility import BollingerBands
-from datetime import datetime
-import time
+from datetime import datetime, timedelta
+from nsepython import equity_history
+from app.nse_helper import get_stock_quote, get_index_quote, clean_symbol, INDEX_NAME_MAP
 
-NSE_SUFFIX = ".NS"
-BSE_SUFFIX = ".BO"
-
+# NSE-only: no BSE Sensex / commodity data available via this source
 INDEX_MAP = {
-    "NIFTY":       "^NSEI",
-    "NIFTY50":     "^NSEI",
-    "BANKNIFTY":   "^NSEBANK",
-    "SENSEX":      "^BSESN",
-    "NIFTYIT":     "^CNXIT",
+    "NIFTY":     "^NSEI",
+    "NIFTY50":   "^NSEI",
+    "BANKNIFTY": "^NSEBANK",
 }
 
 
-def get_stock_symbol(symbol: str) -> str:
-    symbol = symbol.upper().strip()
-    if symbol.endswith(".NS") or symbol.endswith(".BO"):
-        return symbol
-    if symbol in INDEX_MAP:
-        return INDEX_MAP[symbol]
-    if symbol.startswith("^"):
-        return symbol
-    return symbol + NSE_SUFFIX
+def fetch_stock_data(symbol: str, days: int = 100):
+    """Fetch historical OHLC from NSE archives via nsepython. Returns (df, clean_symbol)."""
+    symbol = clean_symbol(symbol)
+    end_date   = datetime.now()
+    start_date = end_date - timedelta(days=days)
 
+    try:
+        raw = equity_history(
+            symbol, "EQ",
+            start_date.strftime("%d-%m-%Y"),
+            end_date.strftime("%d-%m-%Y")
+        )
+        if raw is None or raw.empty:
+            return pd.DataFrame(), symbol
 
-def fetch_stock_data(symbol: str, period: str = "3mo"):
-    symbol = symbol.upper().strip()
+        # NSE historical columns: CH_TIMESTAMP, CH_OPENING_PRICE, CH_TRADE_HIGH_PRICE,
+        # CH_TRADE_LOW_PRICE, CH_CLOSING_PRICE, CH_TOT_TRADED_QTY
+        df = pd.DataFrame({
+            "Date":   pd.to_datetime(raw["CH_TIMESTAMP"]),
+            "Open":   raw["CH_OPENING_PRICE"].astype(float),
+            "High":   raw["CH_TRADE_HIGH_PRICE"].astype(float),
+            "Low":    raw["CH_TRADE_LOW_PRICE"].astype(float),
+            "Close":  raw["CH_CLOSING_PRICE"].astype(float),
+            "Volume": raw["CH_TOT_TRADED_QTY"].astype(float),
+        }).sort_values("Date").reset_index(drop=True)
 
-    # Resolve index
-    if symbol in INDEX_MAP:
-        sym = INDEX_MAP[symbol]
-        try:
-            df = yf.Ticker(sym).history(period=period)
-            if not df.empty and len(df) > 5:
-                return df, sym
-        except Exception:
-            pass
-        return pd.DataFrame(), sym
+        if len(df) < 20:
+            return pd.DataFrame(), symbol
+        return df, symbol
 
-    # Already has suffix
-    if symbol.endswith(".NS") or symbol.endswith(".BO"):
-        try:
-            df = yf.Ticker(symbol).history(period=period)
-            if not df.empty and len(df) > 5:
-                return df, symbol
-        except Exception:
-            pass
+    except Exception:
         return pd.DataFrame(), symbol
-
-    # Try NSE first then BSE
-    for suffix in [NSE_SUFFIX, BSE_SUFFIX]:
-        sym = symbol + suffix
-        try:
-            df = yf.Ticker(sym).history(period=period)
-            if not df.empty and len(df) > 5:
-                return df, sym
-        except Exception:
-            time.sleep(0.3)
-            continue
-
-    return pd.DataFrame(), symbol + NSE_SUFFIX
 
 
 def get_stock_info(symbol: str):
-    symbol = symbol.upper().strip()
-
-    if symbol in INDEX_MAP:
-        sym = INDEX_MAP[symbol]
-        try:
-            return yf.Ticker(sym).info, sym
-        except Exception:
-            return {}, sym
-
-    if symbol.endswith(".NS") or symbol.endswith(".BO"):
-        try:
-            info = yf.Ticker(symbol).info
-            if info.get("longName") or info.get("shortName"):
-                return info, symbol
-        except Exception:
-            pass
+    """Returns (info_dict, clean_symbol) using NSE live quote for fundamentals."""
+    symbol = clean_symbol(symbol)
+    try:
+        quote = get_stock_quote(symbol)
+        meta  = quote.get("info", {}) if isinstance(quote, dict) else {}
+        info = {
+            "longName":     quote.get("companyName", symbol),
+            "sector":       meta.get("industry", quote.get("industry", "Unknown")),
+            "industry":     meta.get("industry", quote.get("industry", "Unknown")),
+            "marketCap":    quote.get("marketCap", 0),
+            "trailingPE":   quote.get("pE", 0) or 0,
+            "priceToBook":  quote.get("pB", 0) or 0,
+            "dividendYield": 0,
+        }
+        return info, symbol
+    except Exception:
         return {}, symbol
-
-    for suffix in [NSE_SUFFIX, BSE_SUFFIX]:
-        sym = symbol + suffix
-        try:
-            info = yf.Ticker(sym).info
-            if info.get("longName") or info.get("shortName"):
-                return info, sym
-        except Exception:
-            continue
-
-    return {}, symbol + NSE_SUFFIX
 
 
 def calculate_indicators(df: pd.DataFrame) -> dict:
@@ -105,42 +75,33 @@ def calculate_indicators(df: pd.DataFrame) -> dict:
         return {}
 
     close = df["Close"]
-    high  = df["High"]
-    low   = df["Low"]
 
-    # RSI
     rsi       = RSIIndicator(close=close, window=14)
     rsi_value = round(float(rsi.rsi().iloc[-1]), 2)
 
-    # MACD
     macd        = MACD(close=close)
     macd_value  = round(float(macd.macd().iloc[-1]), 2)
     macd_signal = round(float(macd.macd_signal().iloc[-1]), 2)
     macd_diff   = round(float(macd.macd_diff().iloc[-1]), 2)
 
-    # Moving Averages
     sma20_value = round(float(SMAIndicator(close=close, window=20).sma_indicator().iloc[-1]), 2)
     sma50_value = round(float(SMAIndicator(close=close, window=50).sma_indicator().iloc[-1])
                         if len(df) >= 50 else 0, 2)
     ema20_value = round(float(EMAIndicator(close=close, window=20).ema_indicator().iloc[-1]), 2)
 
-    # Bollinger Bands
     bb          = BollingerBands(close=close, window=20)
     bb_upper    = round(float(bb.bollinger_hband().iloc[-1]), 2)
     bb_lower    = round(float(bb.bollinger_lband().iloc[-1]), 2)
     bb_mid      = round(float(bb.bollinger_mavg().iloc[-1]), 2)
 
-    # Price data
     current_price = round(float(close.iloc[-1]), 2)
     prev_price    = round(float(close.iloc[-2]), 2)
     price_change  = round(current_price - prev_price, 2)
     pct_change    = round((price_change / prev_price) * 100, 2)
 
-    # 52 week
     week52_high = round(float(close.rolling(window=min(252, len(close))).max().iloc[-1]), 2)
     week52_low  = round(float(close.rolling(window=min(252, len(close))).min().iloc[-1]), 2)
 
-    # Volume
     avg_volume     = int(df["Volume"].rolling(window=20).mean().iloc[-1])
     current_volume = int(df["Volume"].iloc[-1])
 
@@ -258,15 +219,14 @@ def calculate_targets(indicators: dict) -> dict:
 
 def full_stock_analysis(symbol: str) -> dict:
     try:
-        df, actual_sym = fetch_stock_data(symbol)
-        info, _        = get_stock_info(symbol)
+        df, clean_sym = fetch_stock_data(symbol)
+        info, _       = get_stock_info(symbol)
 
         if df.empty:
             return {
                 "error": (
-                    f"Could not find '{symbol}' on NSE or BSE. "
-                    f"Try the exact NSE symbol e.g. RELIANCE, TCS, INFY, HDFCBANK. "
-                    f"For BSE-only stocks add .BO e.g. BAJAJFINSV.BO"
+                    f"Could not find '{symbol}' on NSE, or not enough history yet. "
+                    f"Try the exact NSE symbol e.g. RELIANCE, TCS, INFY, HDFCBANK."
                 )
             }
 
@@ -274,7 +234,7 @@ def full_stock_analysis(symbol: str) -> dict:
         interpretation = interpret_indicators(indicators)
         targets        = calculate_targets(indicators)
 
-        company_name = info.get("longName") or info.get("shortName") or symbol
+        company_name = info.get("longName", clean_sym)
         sector       = info.get("sector",   "Unknown")
         industry     = info.get("industry", "Unknown")
         market_cap   = info.get("marketCap", 0)
@@ -282,11 +242,9 @@ def full_stock_analysis(symbol: str) -> dict:
         pb_ratio     = info.get("priceToBook", 0)
         dividend     = info.get("dividendYield", 0)
 
-        clean_symbol = actual_sym.replace(".NS", "").replace(".BO", "")
-
         return {
-            "symbol":         clean_symbol,
-            "full_symbol":    actual_sym,
+            "symbol":         clean_sym,
+            "full_symbol":    clean_sym,
             "company_name":   company_name,
             "sector":         sector,
             "industry":       industry,

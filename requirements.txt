@@ -9,4 +9,5 @@ ta==0.11.0
 pydantic==2.7.0
 slowapi==0.1.9
 httpx==0.27.2
-curl_cffi>=0.7.0
+nsetools>=1.0.11
+nsepython>=2.86
