@@ -1,9 +1,13 @@
 # app/yf_helper.py
 import time
 import yfinance as yf
+from curl_cffi import requests as cffi_requests
 
 _cache = {}
 CACHE_TTL = 300  # 5 min
+
+# Browser-impersonating session — bypasses Yahoo's bot/IP blocking on cloud hosts
+_session = cffi_requests.Session(impersonate="chrome")
 
 
 def get_info_cached(symbol: str, retries: int = 3):
@@ -15,7 +19,7 @@ def get_info_cached(symbol: str, retries: int = 3):
     last_err = None
     for i in range(retries):
         try:
-            data = yf.Ticker(symbol).info
+            data = yf.Ticker(symbol, session=_session).info
             if data:
                 _cache[symbol] = {"data": data, "time": now}
                 return data
@@ -38,7 +42,7 @@ def get_fast_info_cached(symbol: str, retries: int = 3):
     last_err = None
     for i in range(retries):
         try:
-            fi = yf.Ticker(symbol).fast_info
+            fi = yf.Ticker(symbol, session=_session).fast_info
             _cache[cache_key] = {"data": fi, "time": now}
             return fi
         except Exception as e:
