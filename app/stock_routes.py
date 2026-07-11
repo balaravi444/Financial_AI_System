@@ -5,6 +5,7 @@ from typing import Optional
 from app.stock_analyzer import full_stock_analysis, format_analysis_for_ai
 from app.agent import get_ai_response
 from app.database import get_profile
+from app.yf_helper import get_info_cached, get_fast_info_cached
 
 router = APIRouter()
 
@@ -67,7 +68,6 @@ def analyze_stock(request: StockRequest):
 
 @router.get("/quick-price/{symbol}")
 def quick_price(symbol: str):
-    import yfinance as yf
     from app.stock_analyzer import INDEX_MAP, NSE_SUFFIX
     sym = symbol.upper().strip()
     if sym in INDEX_MAP:
@@ -76,8 +76,7 @@ def quick_price(symbol: str):
          and not sym.endswith(".BO"):
         sym = sym + NSE_SUFFIX
     try:
-        t  = yf.Ticker(sym)
-        fi = t.fast_info          # fast_info is much quicker than .info
+        fi = get_fast_info_cached(sym)
         return {
             "symbol":        symbol.upper(),
             "company_name":  sym,
@@ -285,12 +284,11 @@ def goals_get(session_id: str):
 
 @router.get("/search-stocks/{query}")
 def search_stocks(query: str):
-    import yfinance as yf
     from app.stock_analyzer import NSE_SUFFIX, BSE_SUFFIX
     results = []
     for suffix in [NSE_SUFFIX, BSE_SUFFIX]:
         try:
-            info = yf.Ticker(query.upper() + suffix).info
+            info = get_info_cached(query.upper() + suffix)
             if info.get("longName"):
                 results.append({
                     "symbol":   query.upper(),
